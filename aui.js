@@ -619,37 +619,37 @@ Enter: activate current interactive element.
     //key is the js-char-representation of the key - like 'k' or 'K' when shift/capslock is pressed
     switch (key) {
       case 'ArrowDown':
-        if (metaobj.ctrl) this.selectNextSibling();
+        if (metaobj.ctrlKey) this.selectNextSibling();
         else this.selectNextElement();
         this.readElement(this.activeElement);
         console.log('down to', this.activeElement);
         break;
       case 'ArrowUp':
-        if (metaobj.ctrl) this.selectPreviousSibling();
+        if (metaobj.ctrlKey) this.selectPreviousSibling();
         else this.selectPreviousElement();
         this.readElement(this.activeElement);
         console.log('up to', this.activeElement);
         break;
       case 'ArrowLeft':
-        if (metaobj.ctrl) this.readElementByWord(null, true);
+        if (metaobj.ctrlKey) this.readElementByWord(null, true);
         else this.readElementByChar(null, true);
         break;
       case 'ArrowRight':
-        if (metaobj.ctrl) this.readElementByWord();
+        if (metaobj.ctrlKey) this.readElementByWord();
         else this.readElementByChar();
         break;
       case '.':
-        // if(metaobj.ctrl)this.readElementByWord();
+        // if(metaobj.ctrlKey)this.readElementByWord();
         // else
         this.readElementByPhrase();
         break;
       case 'l':
-        // if(metaobj.ctrl)this.readElementByWord();
+        // if(metaobj.ctrlKey)this.readElementByWord();
         // else
         this.readElementByLine();
         break;
       case 'Enter':
-        // if(metaobj.ctrl)this.activateElement();
+        // if(metaobj.ctrlKey)this.activateElement();
         let activatemsg = this.activateElement();
         // this.readElement(this.activeElement, 'activated');
         if (activatemsg) this.readElement({
@@ -658,14 +658,14 @@ Enter: activate current interactive element.
         console.log('activated', this.activeElement);
         break;
       case 'r':
-        if (metaobj.ctrl) this.readWholeElement();
+        if (metaobj.ctrlKey) this.readWholeElement();
         else this.readElement();
         break;
       case 'd':
         this.readDescription();
         break;
       case 'w':
-        if (metaobj.ctrl) this.whereAmI(true);
+        if (metaobj.ctrlKey) this.whereAmI(true);
         else this.whereAmI();
         break;
       case 'h':
@@ -681,9 +681,7 @@ Enter: activate current interactive element.
       document.addEventListener('keyup', function(e) {
         if (e.target.tagName.toLowerCase() == 'input' && e.key != 'Enter') return;
         // console.log(e);
-        audio_user_interface.reactOnKeystroke(e.key, {
-          ctrl: e.ctrlKey
-        });
+        audio_user_interface.reactOnKeystroke(e.key, e);
       })
     }
     if (contentobj) {
@@ -731,8 +729,5 @@ var plugin_dialog_closed = {
     aui.closeDialog(ae.dialogId);
   },
   extraKeys:['dialogId'],
-  aditionalKeys: function(audibleElement, jsonobj){
-    if(jsonobj.dialogId)audibleElement.dialogId=jsonobj.dialogId;
-  }
 }
 aui.addPlugin(plugin_dialog_closed);

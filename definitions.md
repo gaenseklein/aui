@@ -39,7 +39,6 @@ pagetitle
 
 ## audible element
 
-### content
 the elements of the tree are called audible elements. each element has at least one key-value pair - the `content`. 
 this is the main part of the element and is read out if the element is selected or such. if you want to let audio-user-interface just speak out some text directly from your code just feed them with an object which contains this key-value pair, for example `aui.readElement({content: your_text})`. 
 
@@ -117,21 +116,19 @@ to enhance the user-experience you can use optional key-value-pairs in audible E
 ---
 ## special elements
 
-for some elements you want the output to be specialized. therefore we start to implement specialized audible-elements. these elements can be separated into two main groups: interactive and non-interactive elements.
+for some elements you want the output to be specialized. therefore we start to implement specialized audible-elements. these elements can be separated into two main groups: interactive and non-interactive elements. to let the audible-user-interface communicate with the webpage, such as textfields, buttons, checkboxes, radio-fields etc. you can use these predefined interactive types
 
 ### non-interactive elements
 - 'container': gives the user the information that its a grouping-element with X subelements. containers are meant to have shortcuts in the future via an id
 - 'list': nearly the same as container, but with different future-plans (such as sortable lists) 
 
 ### interactive elements
-
-to let the audible-user-interface communicate with the webpage, such as textfields, buttons, checkboxes, radio-fields etc. you can use these predefined types: 
 - textfield: enters the textfield on pressing Enter, leaves textfield after pressing Enter in textfield
 - button: activates a button
 - toggle: activates/swichtes a toggle (checkbox for now)
 - select: changes a select or radio button
 
-all of these have in common that they are expecting another key-value pair called `queryString`. the queryString must have a css-selector-definition to get exactly the html-node you want to access. 
+all of the interactive elements have in common that they are expecting another key-value pair called `queryString`. the queryString must have a css-selector-definition to get exactly the html-node you want to access. 
 ---
 ##examples 
 
@@ -154,10 +151,14 @@ we will continue with some more details about special elements
 definition: `type:'link'`
 needs key: `href:'target of the link'`
 
-a link does not talk with the DOM of the page but instead is followed directly. so a link-aui-object would be like
-`{type:'link', content:'go to slidenotes.io', href:'https://slidenotes.io'}`
+a link does not talk with the DOM of the page but instead is followed directly.
 if you want to have the user click a specific link in the DOM (to start a javascript-function or something alike) you should use type 'button' instead for the aui-object and a `queryString` to access the link in the DOM (and think about if you could replace the link in the DOM with a button for accessability-reasons too, as in fact button would be the reasonable solution). 
 but maybe this will change in the future, as we progress further with the development. 
+
+example:
+```
+{type:'link', content:'go to slidenotes.io', href:'https://slidenotes.io'}
+```
 
 ---
 ## button
@@ -168,6 +169,12 @@ additional key: `activateMessage:'message to be read to user after activating bu
 
 a aui-button binds the element to a DOM-Element and performs a click on the DOM-Element if aui-button is activated. 
 reads 'activateMessage' if defined after user activated the button
+
+example:
+```
+html: <button id="my-button">some text</button>
+aui-object: {type:'button', content:'some text', queryString:'#my-button'}
+```
 
 ---
 ## toggle
@@ -222,3 +229,86 @@ a full example of a select/option-combination:
 ```
 
 remember: you can add a description to each aui-option and the aui-select if you want.
+---
+## dialog
+
+sometimes the webpage needs to communicate to the aui to get a direct user feedback. in a gui this is normaly done with a dialog which pops up and gains focus. 
+in the world of the aui, a dialog is a new tree. when the dialog gets closed the user is brought back to the old tree on the last selected element. 
+
+to fire up a dialog you build a tree as you are used to it and pass an id to the root. then you can pass it to aui with `aui.openDialog(treeObject)`
+
+to close the dialog you can fire `aui.closeDialog(dialogId)` from within your code where you would also close the gui-dialog.
+
+example:
+```javascript
+//open the dialog
+aui.openDialog({
+    id:'status alert dialog',
+    content:'status alert',
+    subelements: [
+       {content:'a status message the user has to react to'},
+       {content:'ok', type:'button', queryString:'#dialogOk'},
+       {content:'cancel', type:'button', queryString:'#dialogCancel'},
+    ]
+})
+//close the dialog from within your code, for example after pressing #dialogOk or #dialogCancel
+aui.closeDialog('status alert dialog');
+```
+
+---
+## dialogclose
+definition: `type:'dialogclose'`
+needs key: `dialogId:'CSS-QuerySelector of DOM-Element'`
+
+if you build an aui-only dialog you can use this to create a closebutton to the dialog. after activating the user will be brought back to the element last selected before the dialog opened. it is used for the global help menu for example, which is aui only and not represented with html.
+
+example:
+```javascript
+//open an aui-only dialog
+aui.openDialog({
+    id:'status alert dialog',
+    content:'status alert',
+    subelements: [
+       {content:'a status message the user has to react to'},
+       {content:'back to content', type:'dialogclose', dialogId:'status alert dialog'},
+    ]
+})
+```
+
+---
+## plugins 
+
+aui has a plugin-system to let you easily create your own type of audibleElements. 
+as an example the dialogclose button is build as a plugin:
+
+```
+var plugin_dialog_closed = {
+  type:'dialogclose',
+  activateElement: function(audibleElement){
+    let ae=audibleElement || aui.activeElement;
+    if(!ae || !ae.dialogId)return;
+    aui.closeDialog(ae.dialogId);
+  },
+  extraKeys:['dialogId'],
+}
+aui.addPlugin(plugin_dialog_closed);
+```
+
+what it does is the following:
+it describes a new element type with type:'dialogclose'
+it gives an extra activateElement function which is fired if an element of defined type 'dialogclose' is activated
+it defines additional keys with 'extraKeys' which are then parsed into audibleElements when building up the tree
+
+with this you can add buttons and such which are not connected to the gui but still can interact directly with your app if you want. 
+---
+## keyboard-interaction
+
+aui has to get keyboard-inputs to work. all keyboard-inputs should therefore be routed to `aui.reactOnKeystroke(keyString, metaobject)` - where keyString expects a String representing the key pressed (e.g. event.key) and metaobject an object with more detailed info, such as the event itself, to check for metakeys (ctrl/cmd) and such. 
+you can alter the keyboard-layout by altering this function as well. 
+
+if you dont use a keyboard-input-controller you can just initialize aui with aui.init(true). aui will then add an event-listener 'keyup' to the actual document. 
+
+---
+## multilingual
+
+not supported yet, but we keep all the string-replacement-functions in well separated functions to add this ability later on
