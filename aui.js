@@ -15,6 +15,11 @@ function audibleElement(elementOptions) {
   this.description = o.description;
   this.type = o.type;
   this.queryString = o.queryString || false; //its always usefull
+  //plugins:
+  if(o.type && aui.pluginsByType[o.type]){
+    let plugin = aui.pluginsByType[o.type];
+    if(typeof plugin.additionalKeys=='function')plugin.additionalKeys(this,o);
+  }
   switch (o.type) {
     case "toggle":
       // this.value=o.value || false;
@@ -65,6 +70,27 @@ audio_user_interface = {
   activeElement: null,
   activeDialogues: {},
   // addElement: function(audibleElement){},
+  //plugin-system:
+  plugins:[],
+  pluginsByType:{},
+  activateOnType:{},
+  extraKeys:[],
+  addPlugin: function(plugin){
+    this.plugins.push(plugin);
+    if(plugin.type){
+      this.pluginsByType[plugin.type]=plugin;
+    }
+    if(plugin.activateOnType && typeof plugin.activateElement == 'function'){
+      if(this.activateOnType[plugin.activateOnType]==undefined)this.activateOnType[plugin.activateOnType]=[];
+      this.activateOnType[plugin.activateOnType].push(plugin.activateElement);
+    }
+    if(plugin.extraKeys)this.extraKeys=this.extraKeys.concat(plugin.extraKeys);
+  },
+  alterTypeString: function(content, type){
+    let plugin = this.pluginsByType[type];
+    if(!plugin)return content;
+    return plugin.alterElementString(content);
+  },
   formElementCountingString: function(audibleElement, elementsNames, containNames) {
     let en = elementsNames || {
       singular: 'element',
@@ -194,6 +220,19 @@ Enter: activate current interactive element.
     let ae = audibleElement || this.activeElement;
     if (!ae) return null;
     let ret = null;
+    let pluginret='';
+    if(this.activateOnType[ae.type]){
+      let tmp='';
+      for(let i=0;i<this.activateOnType[ae.type].length;i++){
+        let resp = this.activateOnType[ae.type][i].activateElement(ae);
+        if(resp!=null)tmp+=', '+resp;
+      }
+      if(tmp.length>0)pluginret=tmp;
+    }
+    if(this.pluginsByType[ae.type] && typeof this.pluginsByType[ae.type].activateElement == 'function'){
+      let resp = this.pluginsByType[ae.type].activateElement(ae);
+      if(resp)pluginret+=', '+resp;
+    }
     switch (ae.type) {
       case 'button':
         if (ae.queryString) {
@@ -259,6 +298,8 @@ Enter: activate current interactive element.
         }
         break;
     }
+    if(pluginret && !ret)ret=pluginret;
+    else if(pluginret)ret+=', '+pluginret;
     return ret;
   },
   selectElement: function(audibleElement, options) {
@@ -398,6 +439,10 @@ Enter: activate current interactive element.
       description: jsonobj.description,
       value: jsonobj.value,
     });
+    for(let i=0;i<this.extraKeys.length;i++){
+      let k=this.extraKeys[i];
+      if(jsonobj[k]!=undefined)node[k]=jsonobj[k];
+    }
     if (jsonobj.id) this.idelements[jsonobj.id] = node;
     // if(jsonobj.type=="select")node.options=jsonobj.options;
     if (jsonobj.subelements) {
@@ -456,6 +501,7 @@ Enter: activate current interactive element.
       return false;
     }
     this.selectElement(dialog.returnToElement);
+    this.activeDialogues[id]=undefined; //delete active dialog
     this.readElement(this.activeElement, 'closed dialog, returned to ');
   },
   readElement: function(audibleElement, before, after) {
@@ -491,8 +537,11 @@ Enter: activate current interactive element.
     this.outputText(outputstring);
   },
   readGlobalHelp: function() {
-    let outputstring = this.formGlobalHelpString();
-    this.outputText(outputstring);
+    //let outputstring = this.formGlobalHelpString();
+    //this.outputText(outputstring);
+    console.log('starting global help')
+    this.openDialog(this.helpDialog);
+    this.readElement();
   },
   readElementByLine: function(audibleElement) {
     let ae = audibleElement || this.activeElement;
@@ -644,7 +693,46 @@ Enter: activate current interactive element.
       this.readElement(this.activeElement);
     }
     this.outputPolite = document.getElementById('aui-output-polite');
-  }
+  },
+  helpDialog: {
+    content:'global help',
+    id: 'globalHelp',
+    type:'dialog',
+    subelements:[
+      {content:'keyboard shortcuts', type:'list', subelements:[
+        {content:'Arrow Down: Move to next element in tree. If element has subelements it enters subelements.'},
+        {content:'control and arrow down: Move to next Sibling in tree, not entering subelements.'},
+        {content:'Arrow Up: Move to previous element in tree. if previous sibling has subelements start with last and most profound subelement of tree.'},
+        {content:'control and arrow up: move to previous sibling of element. if it is first subelement of its parent move to parent.'},
+        {content:'r: read current element.'},
+        {content:'control and r: read current element with all of its subelements .'},
+        {content:'d: read description of current element. if no description is defined it will not read anything.'},
+        {content:'w: read where am i, to get overview of where in the tree i am currently.'},
+        {content:'control and w: read whole path to get to where i am now.'},
+        {content:'h: read help for elements such as special keystrokes.'},
+        {content:'n: enter navigation tree.'},
+        {content:'m: enter main content tree.'},
+        {content:'l: enter line-reading mode: reads element content by line. press l to read next line in queue.'},
+        {content:'.: enter phrase-reading mode: reads element content divided by . ! and ?.'},
+        {content:'Enter: activate current interactive element.'},
+      ]},
+      {content:'exit help', type:'dialogclose', dialogId:'globalHelp'},
+    ]
+  },
 }
 audio_user_interface.init(true);
 var aui = audio_user_interface;
+
+var plugin_dialog_closed = {
+  type:'dialogclose',
+  activateElement: function(audibleElement){
+    let ae=audibleElement || aui.activeElement;
+    if(!ae || !ae.dialogId)return;
+    aui.closeDialog(ae.dialogId);
+  },
+  extraKeys:['dialogId'],
+  aditionalKeys: function(audibleElement, jsonobj){
+    if(jsonobj.dialogId)audibleElement.dialogId=jsonobj.dialogId;
+  }
+}
+aui.addPlugin(plugin_dialog_closed);
