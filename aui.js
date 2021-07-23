@@ -140,31 +140,17 @@ audio_user_interface = {
     return t;
   },
   formGlobalHelpString: function() {
-    let t = `
-Arrow Down: Move to next element in tree. If element has subelements it enters subelements.
-control and arrow down: Move to next Sibling in tree, not entering subelements.
-Arrow Up: Move to previous element in tree. if previous sibling has subelements start with last and most profound subelement of tree.
-control and arrow up: move to previous sibling of element. if it is first subelement of its parent move to parent.
-r: read current element.
-control and r: read current element with all of its subelements .
-d: read description of current element. if no description is defined it will not read anything.
-w: read where am i, to get overview of where in the tree i am currently.
-control and w: read whole path to get to where i am now.
-h: read help for elements such as special keystrokes.
-n: enter navigation tree.
-m: enter main content tree.
-l: enter line-reading mode: reads element content by line. press l to read next line in queue.
-.: enter phrase-reading mode: reads element content divided by . ! and ?.
-Enter: activate current interactive element.
-      `
-    return t;
+    //do we still need this or can it be deleted?
   },
   formStringOfElement: function(audibleElement, options) {
     let ae = audibleElement;
     let o = options || {};
     let t = ae.content;
+    if(o.onlyContent)return t;
     if (ae.pretext) t = ae.pretext + ", " + t;
+    if(o.onlyPrefix)return t;
     if (ae.postext) t += ', ' + ae.postext;
+    if(o.onlyPrefixAndPost)return t;
     switch (ae.type) {
       case "container":
         if (!o.dontShowId) t += ', ' + this.formIdString(ae);
@@ -207,12 +193,13 @@ Enter: activate current interactive element.
     }
     return t;
   },
-  formStringOfWholeElement: function(audibleElement) {
-    let t = this.formStringOfElement(audibleElement);
+  formStringOfWholeElement: function(audibleElement, options) {
+    let o = options ||{onlyContent:true};
+    let t = this.formStringOfElement(audibleElement,o);
     if (!audibleElement.subElements) return t;
     for (let i = 0; i < audibleElement.subElements.length; i++) {
       t += '\n , ';
-      t += this.formStringOfWholeElement(audibleElement.subElements[i]);
+      t += this.formStringOfWholeElement(audibleElement.subElements[i],o);
     }
     return t;
   },
@@ -371,6 +358,7 @@ Enter: activate current interactive element.
   },
   getNextSibling: function(audibleElement) {
     let parent = audibleElement.parentElement;
+    if(!parent)return false;
     let index = -1;
     for (let i = 0; i < parent.subElements.length; i++) {
       if (parent.subElements[i] == audibleElement) {
@@ -427,7 +415,7 @@ Enter: activate current interactive element.
     }
     return ret;
   },
-  parseJsonTree: function(jsonobj, parent) {
+  parseJsonTree: function(jsonobj, parent, opt) {
     let node = new audibleElement({
       content: jsonobj.content,
       type: jsonobj.type,
@@ -462,7 +450,7 @@ Enter: activate current interactive element.
     this.readElement();
   },
   openDialog: async function(jsonobj) {
-    let dialog = this.parseJsonTree(jsonobj, {
+    let dialog = this.parseJsonTree(jsonobj, false, {
       dontLinkIds: true
     });
     dialog.returnToElement = this.activeElement;
@@ -516,10 +504,10 @@ Enter: activate current interactive element.
     this.outputText(outputstring);
     console.log('reading', outputstring);
   },
-  readWholeElement: function(audibleElement) {
+  readWholeElement: function(audibleElement, options) {
     let ae = audibleElement || this.activeElement;
     if (!ae) return false;
-    let outputstring = this.formStringOfWholeElement(ae);
+    let outputstring = this.formStringOfWholeElement(ae, options);
     this.outputText(outputstring);
     console.log('reading whole element', outputstring);
   },
@@ -541,7 +529,7 @@ Enter: activate current interactive element.
     //this.outputText(outputstring);
     console.log('starting global help')
     this.openDialog(this.helpDialog);
-    this.readElement();
+    this.readWholeElement(this.activeElement, {dontcount:true});
   },
   readElementByLine: function(audibleElement) {
     let ae = audibleElement || this.activeElement;
