@@ -198,6 +198,8 @@ needs subelements of `type:'option'`
 a multichoice aui-element lets the user select between different options for one element. as such it needs elements of type *option* as subelements.
 as for now it is only implemented with a select-element in the DOM
 
+if no subelements are defined aui will form option-subelements from given html-element 
+
 example:
 ```
 html: <select id="sel">...</select>
@@ -210,6 +212,9 @@ needs parent with definition: `type:'select'` or `type:'multichoice'`
 needs key: `value:'value of option'`
 
 just like in html the option needs a value which it can pass to the html. 
+you can define options of selects indepenently from html if you wish to do so. 
+like 
+just make shure a valid value will be sent to the select
 a full example of a select/option-combination:
 ```html
 <select id="select1">

@@ -438,6 +438,17 @@ audio_user_interface = {
       for (let x = 0; x < jsonobj.subelements.length; x++) {
         node.subElements.push(this.parseJsonTree(jsonobj.subelements[x], node));
       }
+    } else if(jsonobj.type=='select' && jsonobj.queryString){
+      //lazy select (no subelements on select): parse childs from html:
+      let sel = document.querySelector(jsonobj.queryString);
+      let options = [];
+      for(let o=0;o<sel.options.length;o++){
+        let tmp = {content: sel.options[o].innerText, type:'option', value:sel.options[o].value, parentElement:node};
+        if(sel.options[o].title)tmp.description=sel.options[o].title;
+        options.push(tmp);
+      }
+      if(sel.title && !node.description)node.description=sel.title;
+      node.subElements=options;
     }
     return node;
   },
