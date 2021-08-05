@@ -75,6 +75,7 @@ audio_user_interface = {
   pluginsByType:{},
   activateOnType:{},
   extraKeys:[],
+  hooksOnSelectElement:[],
   addPlugin: function(plugin){
     this.plugins.push(plugin);
     if(plugin.type){
@@ -85,6 +86,8 @@ audio_user_interface = {
       this.activateOnType[plugin.activateOnType].push(plugin.activateElement);
     }
     if(plugin.extraKeys)this.extraKeys=this.extraKeys.concat(plugin.extraKeys);
+    if(plugin.hooksOnSelectElement)this.hooksOnSelectElement = this.hooksOnSelectElement.concat(plugin.hooksOnSelectElement);
+    if(plugin.hookOnSelectElement && typeof plugin.hookOnSelectElement == 'function')this.hooksOnSelectElement.push(plugin.hookOnSelectElement);
   },
   alterTypeString: function(content, type){
     let plugin = this.pluginsByType[type];
@@ -299,6 +302,8 @@ audio_user_interface = {
     }
     this.currentReadPos = 0; //reset current Reading Pos as we read Element from anew
     if (options && options.readPos) this.currentReadPos = options.readPos; //to set it manualy if needed
+    //plugin-hooks:
+    for(let i=0;i<this.hooksOnSelectElement.length;i++)this.hooksOnSelectElement[i](audibleElement, options);
   },
   selectElementById: function(id) {
     if (this.idelements[id]) this.selectElement(this.idelements[id]);
