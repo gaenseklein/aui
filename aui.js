@@ -15,7 +15,7 @@ function audibleElement(elementOptions) {
   this.description = o.description;
   this.type = o.type;
   this.queryString = o.queryString || false; //its always usefull
-  //plugins:
+  //plugins by type:
   if(o.type && aui.pluginsByType[o.type]){
     let plugin = aui.pluginsByType[o.type];
     if(typeof plugin.additionalKeys=='function')plugin.additionalKeys(this,o);
@@ -193,6 +193,9 @@ audio_user_interface = {
           }
         }
         break;
+      default:
+        if (!o.dontcount && o.subElements && o.subElements.length>0) t += ', ' + this.formElementCountingString(ae);
+
     }
     return t;
   },
@@ -274,6 +277,7 @@ audio_user_interface = {
           if (!select) return ret;
           if (select.tagName.toLowerCase() == 'select') {
             select.value = ae.value;
+            select.dispatchEvent(new Event('change'));
             let ind = this.getIndexInParent(ae) + 1;
             ret = 'chose option ' + ind + ' of ' + ae.parentElement.content + ', ' + ae.content;
           }
@@ -431,6 +435,7 @@ audio_user_interface = {
       activateMessage: jsonobj.activateMessage,
       description: jsonobj.description,
       value: jsonobj.value,
+      href:jsonobj.href,
     });
     for(let i=0;i<this.extraKeys.length;i++){
       let k=this.extraKeys[i];
@@ -621,39 +626,41 @@ audio_user_interface = {
   },
   reactOnKeystroke: function(key, metaobj) {
     //key is the js-char-representation of the key - like 'k' or 'K' when shift/capslock is pressed
+    let pressedCtrl = metaobj.ctrlKey;
+    if(this.isMac)pressedCtrl=metaobj.metaKey;
     switch (key) {
       case 'ArrowDown':
-        if (metaobj.ctrlKey) this.selectNextSibling();
+        if (pressedCtrl) this.selectNextSibling();
         else this.selectNextElement();
         this.readElement(this.activeElement);
         console.log('down to', this.activeElement);
         break;
       case 'ArrowUp':
-        if (metaobj.ctrlKey) this.selectPreviousSibling();
+        if (pressedCtrl) this.selectPreviousSibling();
         else this.selectPreviousElement();
         this.readElement(this.activeElement);
         console.log('up to', this.activeElement);
         break;
       case 'ArrowLeft':
-        if (metaobj.ctrlKey) this.readElementByWord(null, true);
+        if (pressedCtrl) this.readElementByWord(null, true);
         else this.readElementByChar(null, true);
         break;
       case 'ArrowRight':
-        if (metaobj.ctrlKey) this.readElementByWord();
+        if (pressedCtrl) this.readElementByWord();
         else this.readElementByChar();
         break;
       case '.':
-        // if(metaobj.ctrlKey)this.readElementByWord();
+        // if(pressedCtrl)this.readElementByWord();
         // else
         this.readElementByPhrase();
         break;
       case 'l':
-        // if(metaobj.ctrlKey)this.readElementByWord();
+        // if(pressedCtrl)this.readElementByWord();
         // else
         this.readElementByLine();
         break;
       case 'Enter':
-        // if(metaobj.ctrlKey)this.activateElement();
+        // if(pressedCtrl)this.activateElement();
         let activatemsg = this.activateElement();
         // this.readElement(this.activeElement, 'activated');
         if (activatemsg) this.readElement({
@@ -662,14 +669,14 @@ audio_user_interface = {
         console.log('activated', this.activeElement);
         break;
       case 'r':
-        if (metaobj.ctrlKey) this.readWholeElement();
+        if (pressedCtrl) this.readWholeElement();
         else this.readElement();
         break;
       case 'd':
         this.readDescription();
         break;
       case 'w':
-        if (metaobj.ctrlKey) this.whereAmI(true);
+        if (pressedCtrl) this.whereAmI(true);
         else this.whereAmI();
         break;
       case 'h':
@@ -680,13 +687,21 @@ audio_user_interface = {
         break;
     }
   },
-  init: function(directKeystrokes, contentobj) {
-    if (directKeystrokes) {
+  init: function(options) {
+    this.isMac=(navigator.userAgent.indexOf('Mac OS X') != -1);
+    if (options===true) {
       document.addEventListener('keyup', function(e) {
         if (e.target.tagName.toLowerCase() == 'input' && e.key != 'Enter') return;
         // console.log(e);
         audio_user_interface.reactOnKeystroke(e.key, e);
       })
+    }
+    this.outputPolite = document.getElementById('aui-output-polite');
+    if(options.reactOnOutputFocus)this.outputPolite.addEventListener('keyup',function(e){aui.reactOnKeystroke(e.key,e)});
+    if(options.reactOnElement){
+      options.reactOnElement.addEventListener('keyup', function(e){
+        aui.reactOnKeystroke(e.key,e);
+      });
     }
     if (contentobj) {
       this.content = {};
@@ -694,7 +709,6 @@ audio_user_interface = {
       this.activeElement = this.content.main;
       this.readElement(this.activeElement);
     }
-    this.outputPolite = document.getElementById('aui-output-polite');
   },
   helpDialog: {
     content:'global help',
@@ -703,9 +717,9 @@ audio_user_interface = {
     subelements:[
       {content:'keyboard shortcuts', type:'list', subelements:[
         {content:'Arrow Down: Move to next element in tree. If element has subelements it enters subelements.'},
-        {content:'control and arrow down: Move to next Sibling in tree, not entering subelements.'},
+        {content:'control or command and arrow down: Move to next Sibling in tree, not entering subelements.'},
         {content:'Arrow Up: Move to previous element in tree. if previous sibling has subelements start with last and most profound subelement of tree.'},
-        {content:'control and arrow up: move to previous sibling of element. if it is first subelement of its parent move to parent.'},
+        {content:'control or command and arrow up: move to previous sibling of element. if it is first subelement of its parent move to parent.'},
         {content:'r: read current element.'},
         {content:'control and r: read current element with all of its subelements .'},
         {content:'d: read description of current element. if no description is defined it will not read anything.'},
@@ -722,7 +736,7 @@ audio_user_interface = {
     ]
   },
 }
-audio_user_interface.init(true);
+// audio_user_interface.init(true);
 var aui = audio_user_interface;
 
 var plugin_dialog_closed = {
