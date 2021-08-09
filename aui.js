@@ -70,6 +70,7 @@ audio_user_interface = {
   activeElement: null,
   activeDialogues: {},
   // addElement: function(audibleElement){},
+  lastEnterObject:{},
   //plugin-system:
   plugins:[],
   pluginsByType:{},
@@ -247,6 +248,14 @@ audio_user_interface = {
             //enter textarea
             ret = 'entered textfield ' + ae.content + '. current value ' + tf.value;
             if (tf.value.length == 0) ret = 'entered empty textfield ' + ae.content;
+            //add event listener if not there allready: - onkeyup is rude but effective:
+            tf.auicontent=ae.content;
+            tf.onkeyup = function(e){
+              if(e.key=='Enter'){
+                aui.outputPolite.focus();
+                aui.readElement({content:'left textfield ' + this.auicontent + ' with value , ' + this.value});
+              }
+            };
             tf.focus();
           }
         }
@@ -317,10 +326,10 @@ audio_user_interface = {
     let ne = this.getNextElement(this.activeElement);
     if (ne) this.selectElement(ne);
   },
-  selectNextSibling: function() {
+  selectNextSibling: function(dontgoup) {
     if (this.activeElement == null) return false;
     if (!this.activeElement.parentElement) return false;
-    let ne = this.getNextSibling(this.activeElement);
+    let ne = this.getNextSibling(this.activeElement, dontgoup);
     if (ne) this.selectElement(ne);
   },
   selectPreviousElement: function() {
@@ -328,9 +337,9 @@ audio_user_interface = {
     let pe = this.getPreviousElement(this.activeElement);
     if (pe) this.selectElement(pe);
   },
-  selectPreviousSibling: function() {
+  selectPreviousSibling: function(dontgoup) {
     if (this.activeElement == null) return false;
-    let pe = this.getPreviousSibling(this.activeElement);
+    let pe = this.getPreviousSibling(this.activeElement, dontgoup);
     if (pe) this.selectElement(pe);
   },
   getNextElement: function(audibleElement, noSubElement) {
@@ -365,7 +374,7 @@ audio_user_interface = {
     }
     return acte;
   },
-  getNextSibling: function(audibleElement) {
+  getNextSibling: function(audibleElement, dontgoup) {
     let parent = audibleElement.parentElement;
     if(!parent)return false;
     let index = -1;
@@ -378,9 +387,9 @@ audio_user_interface = {
     if (index >= 0 && index < parent.subElements.length) return parent.subElements[index];
     //return false;
     //try next Element, but without subelements
-    return this.getNextElement(parent.subElements[parent.subElements.length - 1], true)
+    if(!dontgoup)return this.getNextElement(parent.subElements[parent.subElements.length - 1], true)
   },
-  getPreviousSibling: function(audibleElement) {
+  getPreviousSibling: function(audibleElement, dontgoup) {
     //get previous Element in tree (either sibling or parent):
     let parent = audibleElement.parentElement;
     if (!parent) return false;
@@ -392,7 +401,7 @@ audio_user_interface = {
       }
     }
     if (index >= 0) return parent.subElements[index];
-    return parent;
+    if(!dontgoup)return parent;
   },
   getIndexInParent: function(audibleElement) {
     let parent = audibleElement.parentElement;
@@ -536,7 +545,7 @@ audio_user_interface = {
     let ae = audibleElement || this.activeElement;
     if (!ae) return false;
     let outputstring = ae.description;
-    this.outputText(outputstring);
+    if(outputstring)this.outputText(outputstring);
     console.log('reading description', outputstring);
   },
   readHelpOfElement: function(audibleElement) {
@@ -624,7 +633,94 @@ audio_user_interface = {
     if (!this.outputPolite) this.outputPolite = document.getElementById('aui-output-polite');
     this.outputPolite.innerHTML = outputstring;
   },
-  reactOnKeystroke: function(key, metaobj) {
+  reactOnKeystroke: function(key, metaobj){
+    if(this.keyboardstyle=='menu'){
+      this.reactOnKeystrokeMenuStyle(key,metaobj);
+    }else{
+      this.reactOnKeystrokeDocumentStyle(key,metaobj);
+    }
+  },
+  reactOnKeystrokeMenuStyle: function(key, metaobj) {
+    //key is the js-char-representation of the key - like 'k' or 'K' when shift/capslock is pressed
+    let pressedCtrl = metaobj.ctrlKey;
+    if(this.isMac)pressedCtrl=metaobj.metaKey;
+    switch (key) {
+      case 'ArrowDown':
+        this.selectNextSibling(true);
+        // else this.selectNextElement();
+        this.readElement(this.activeElement);
+        console.log('down to', this.activeElement);
+        break;
+      case 'ArrowUp':
+        this.selectPreviousSibling(true);
+        // else this.selectPreviousElement();
+        this.readElement(this.activeElement);
+        console.log('up to', this.activeElement);
+        break;
+      case 'ArrowLeft':
+        if (pressedCtrl) this.readElementByWord(null, true);
+        else this.readElementByChar(null, true);
+        break;
+      case 'ArrowRight':
+        if (pressedCtrl) this.readElementByWord();
+        else this.readElementByChar();
+        break;
+      case '.':
+        // if(pressedCtrl)this.readElementByWord();
+        // else
+        this.readElementByPhrase();
+        break;
+      case 'l':
+        // if(pressedCtrl)this.readElementByWord();
+        // else
+        this.readElementByLine();
+        break;
+      case 'Enter':
+        // if(pressedCtrl)this.activateElement();
+        let activatemsg;
+        if(this.activeElement.subElements && this.activeElement.subElements.length>0){
+          this.selectElement(this.activeElement.subElements[0]);
+          this.readElement(this.activeElement);
+        }else{
+          let date = Date.now();
+          let mintime = 300;
+          if(this.lastEnterObject.date &&
+            date - this.lastEnterObject.date<mintime &&
+            this.lastEnterObject.audioElement == this.activeElement)
+             activatemsg = this.activateElement();
+           this.lastEnterObject={date:date,audioElement:this.activeElement};
+        }
+        // this.readElement(this.activeElement, 'activated');
+        if (activatemsg) this.readElement({
+          content: activatemsg
+        });
+        console.log('activated', this.activeElement);
+        break;
+      case 'Backspace':
+        let parent = this.activeElement.parentElement;
+        if(parent)this.selectElement(parent);
+        this.readElement(this.activeElement);
+        break;
+      case 'r':
+        if (pressedCtrl) this.readWholeElement();
+        else this.readElement();
+        break;
+      case 'd':
+        this.readDescription();
+        break;
+      case 'w':
+        if (pressedCtrl) this.whereAmI(true);
+        else this.whereAmI();
+        break;
+      case 'h':
+        this.readHelpOfElement();
+        break;
+      case 'H':
+        this.readGlobalHelp();
+        break;
+    }
+  },
+  reactOnKeystrokeDocumentStyle: function(key, metaobj) {
     //key is the js-char-representation of the key - like 'k' or 'K' when shift/capslock is pressed
     let pressedCtrl = metaobj.ctrlKey;
     if(this.isMac)pressedCtrl=metaobj.metaKey;
@@ -691,7 +787,8 @@ audio_user_interface = {
     this.isMac=(navigator.userAgent.indexOf('Mac OS X') != -1);
     if (options===true) {
       document.addEventListener('keyup', function(e) {
-        if (e.target.tagName.toLowerCase() == 'input' && e.key != 'Enter') return;
+        // if (e.target.tagName.toLowerCase() == 'input' && e.key != 'Enter') return;
+        if (e.target.tagName.toLowerCase() == 'input') return;
         // console.log(e);
         audio_user_interface.reactOnKeystroke(e.key, e);
       })
@@ -703,34 +800,39 @@ audio_user_interface = {
         aui.reactOnKeystroke(e.key,e);
       });
     }
-    if (contentobj) {
-      this.content = {};
-      this.content.main = this.parseJsonTree(contentobj.main);
-      this.activeElement = this.content.main;
-      this.readElement(this.activeElement);
-    }
   },
   helpDialog: {
     content:'global help',
-    id: 'globalHelp',
+    id: 'global Help',
     type:'dialog',
     subelements:[
       {content:'keyboard shortcuts', type:'list', subelements:[
-        {content:'Arrow Down: Move to next element in tree. If element has subelements it enters subelements.'},
-        {content:'control or command and arrow down: Move to next Sibling in tree, not entering subelements.'},
-        {content:'Arrow Up: Move to previous element in tree. if previous sibling has subelements start with last and most profound subelement of tree.'},
-        {content:'control or command and arrow up: move to previous sibling of element. if it is first subelement of its parent move to parent.'},
-        {content:'r: read current element.'},
-        {content:'control and r: read current element with all of its subelements .'},
-        {content:'d: read description of current element. if no description is defined it will not read anything.'},
-        {content:'w: read where am i, to get overview of where in the tree i am currently.'},
-        {content:'control and w: read whole path to get to where i am now.'},
-        {content:'h: read help for elements such as special keystrokes.'},
-        {content:'n: enter navigation tree.'},
-        {content:'m: enter main content tree.'},
-        {content:'l: enter line-reading mode: reads element content by line. press l to read next line in queue.'},
-        {content:'.: enter phrase-reading mode: reads element content divided by . ! and ?.'},
-        {content:'Enter: activate current interactive element.'},
+        {content:'General Shortcuts', type:'list', subelements:[
+          {content:'r: read current element.'},
+          {content:'control and r: read current element with all of its subelements .'},
+          {content:'d: read description of current element. if no description is defined it will not read anything.'},
+          {content:'w: read where am i, to get overview of where in the tree i am currently.'},
+          {content:'control and w: read whole path to get to where i am now.'},
+          // {content:'h: read help for elements such as special keystrokes.'},
+          // {content:'n: enter navigation tree.'},
+          // {content:'m: enter main content tree.'},
+          {content:'l: enter line-reading mode: reads element content by line. press l to read next line in queue.'},
+          {content:'dot: enter phrase-reading mode: reads element content divided by dot exclamation mark and question mark.'},
+        ]},
+        {content:'Menu Style', type:'list', subelements:[
+          {content:'arrow down: move to next sibling of element. If there is none do nothing.'},
+          {content:'arrow up: move to previous sibling of element. If there is none do nothing.'},
+          {content:'Enter: if element has subelement, go to first subelement'},
+          {content:'Backspace: go to parent of element'},
+          {content:'Double Enter: activate current interactive element'},
+        ]},
+        {content:'Document Style', type:'list', subelements:[
+          {content:'Arrow Down: Move to next element in tree. If element has subelements it enters subelements.'},
+          {content:'control or command and arrow down: Move to next Sibling in tree, not entering subelements.'},
+          {content:'Arrow Up: Move to previous element in tree. if previous sibling has subelements start with last and most profound subelement of tree.'},
+          {content:'control or command and arrow up: move to previous sibling of element. if it is first subelement of its parent move to parent.'},
+          {content:'Enter: activate current interactive element.'},
+        ]},
       ]},
       {content:'exit help', type:'dialogclose', dialogId:'globalHelp'},
     ]

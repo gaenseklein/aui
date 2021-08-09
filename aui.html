@@ -11,12 +11,56 @@
     }
     code{
       white-space: pre;
+      max-height: 15em;
+      overflow: scroll;
+      display: block;
+      background: aliceblue;
+    }
+    div#aui-output-polite {
+      min-height: 3em;
+      background: wheat;
     }
   </style>
   <body>
     <h1>Test and Example-Page of Audio User Interface</h1>
     <div tabindex="1" class="" id="aui-output-polite" role="application" aria-live="polite">
       Welcome to the Audio User Interface. No Content loaded yet
+    </div>
+    <div class="config-dialog">
+      <label for="keyboardstyle">Choose Navigation Style</label>
+      <select class="" name="" id="keyboardstyle" onchange="aui.keyboardstyle=this.value;">
+        <option value="document">Document Style</option>
+        <option value="menu">Menu Style</option>
+      </select>
+      <div class="explanation">
+        <p>
+          aui offers two navigation styles, document style and menu style.
+          document style is best used inside document-like trees, like an
+          article you want to read from top to bottom.
+          menu style is best used for complicated trees such as menus, navigation
+          and lots of interactive content as it gives users a
+          much better control where in the tree they are.
+        </p>
+        <h3>document style</h3>
+        <ul>
+          <li>
+            Arrow Up/Down: go to previous/next element. if current element has children it goes to first child.
+            if previous sibling has children it goes to last child
+          </li>
+          <li>
+            CMD/CTRL Arrow Up/Down: go to previous/next sibling. if there is no next sibling it moves to next element (like parent sibling).
+            if there is no previous sibling it moves to parent.
+          </li>
+          <li>Enter: activate current interactive element (click on a button, enter a textfield etc.)</li>
+        </ul>
+        <h3>menu style</h3>
+        <ul>
+          <li>Arrow Up/Down: go to previous/next sibling. if there is none it does nothing</li>
+          <li>Enter: If current element has children goes to first child</li>
+          <li>Backspace: Move up to parent</li>
+          <li>Double Enter: activate current interactive element (click on a button, enter a textfield etc.)</li>
+        </ul>
+      </div>
     </div>
     <div class="form-dialog">
       <h2>Here are some form-elements and such to test out interaction with html</h2>
