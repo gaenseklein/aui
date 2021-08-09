@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title>Audio User Interface Example Site</title>
+  </head>
+  <style media="screen">
+    .aui-pseudo-focused{
+      background:red;
+      border:2px solid red;
+    }
+    code{
+      white-space: pre;
+      max-height: 15em;
+      overflow: scroll;
+      display: block;
+      background: aliceblue;
+    }
+    div#aui-output-polite {
+      min-height: 3em;
+      background: wheat;
+    }
+    body{
+      display: grid;
+      grid-template-areas:'title title' 'left aui';
+      grid-template-columns: 3fr 2fr;
+    }
+    h1{
+      grid-area:title;
+    }
+    .left-side{
+      grid-area:left;
+    }
+    .aui-wrapper{
+      grid-area:aui;
+    }
+    .content.aui--in-path {
+      border: 2px dashed blue;
+    }
+
+    .aui-tree-wrapper.aui--in-path > .content {
+      background: aliceblue;
+    }
+
+    .aui-tree-wrapper{
+      display:none;
+    }
+
+    .aui--in-path > .aui-tree-wrapper,
+    #aui-tree > .aui-tree-wrapper {
+      display: block;
+    }
+
+    .aui-tree-wrapper {
+      margin-left: 2ch;
+    }
+
+  </style>
+  <body>
+    <h1>Test and Example-Page of Audio User Interface with gui-representation</h1>
+    <div class="aui-wrapper">
+      <h2>graphical representation of aui</h2>
+      <h3>last read text:</h3>
+      <div tabindex="1" class="" id="aui-output-polite" role="application" aria-live="polite">
+        Welcome to the Audio User Interface. No Content loaded yet
+      </div>
+      <h3>tree</h3>
+      <div id="aui-tree">
+
+      </div>
+    </div>
+    <div class="left-side">
+      <div class="config-dialog">
+        <label for="keyboardstyle">Choose Navigation Style</label>
+        <select class="" name="" id="keyboardstyle" onchange="aui.keyboardstyle=this.value;">
+          <option value="document">Document Style</option>
+          <option value="menu">Menu Style</option>
+        </select>
+        <div class="explanation">
+          <p>
+            aui offers two navigation styles, document style and menu style.
+            document style is best used inside document-like trees, like an
+            article you want to read from top to bottom.
+            menu style is best used for complicated trees such as menus, navigation
+            and lots of interactive content as it gives users a
+            much better control where in the tree they are.
+          </p>
+          <h3>document style</h3>
+          <ul>
+            <li>
+              Arrow Up/Down: go to previous/next element. if current element has children it goes to first child.
+              if previous sibling has children it goes to last child
+            </li>
+            <li>
+              CMD/CTRL Arrow Up/Down: go to previous/next sibling. if there is no next sibling it moves to next element (like parent sibling).
+              if there is no previous sibling it moves to parent.
+            </li>
+            <li>Enter: activate current interactive element (click on a button, enter a textfield etc.)</li>
+          </ul>
+          <h3>menu style</h3>
+          <ul>
+            <li>Arrow Up/Down: go to previous/next sibling. if there is none it does nothing</li>
+            <li>Enter: If current element has children goes to first child</li>
+            <li>Backspace: Move up to parent</li>
+            <li>Double Enter: activate current interactive element (click on a button, enter a textfield etc.)</li>
+          </ul>
+        </div>
+      </div>
+      <div class="form-dialog">
+        <h2>Here are some form-elements and such to test out interaction with html</h2>
+        <button type="button" name="button" onclick="load_testform()">load testform</button>
+        <form id="form1" class="" onsubmit="cancel_submit()">
+          <input type="text" name="" id="text1" value="">
+          <input type="email" name="" id="email" value="">
+          <input type="checkbox" name="" value="" id="check1"> checkbox (without a label to demonstrate independency from html)
+          <select class="" name="" id="select1">
+            <option value="first">first option</option>
+            <option value="second">second option</option>
+            <option value="third">third option</option>
+          </select>
+          <select class="" name="" id="lazyselect" title="please select one of the following three">
+            <option value="a">first option</option>
+            <option value="b">second option</option>
+            <option value="c">third option</option>
+          </select>
+          <button type="button" name="button" id="reset" onclick="reset_form('form1')">clear all entrys</button>
+          <button type="button" name="submit" onclick="alert('submitted')">submit</button>
+        </form>
+        <h3>and here is the code of the testform:</h3>
+        <code>testform = {
+          content:'custom data entry',
+          pretext:'form',
+          type: 'container',
+          subelements: [
+            {content:'your text',type:'textfield',queryString:'#text1', description:'enter your chat message here'},
+            {content:'your email', type:'textfield',queryString:'#email', description:'enter your email here'},
+            {content:'notify me', type:'toggle',queryString:'#check1', description:'activate to get our newsletter'},
+            {content:'select an option', type:'select',queryString:'#select1',
+              subelements:[
+                {content:'first option', type:'option', value:'first'},
+                {content:'second option', type:'option',value:'second'},
+                {content:'third option', type:'option',value:'third'},
+              ]
+            },
+            {content:'select another option', type:'select', queryString:'#lazyselect'},
+            {content:'clear all entrys', type:'button',queryString:'#reset', activateMessage:'you have cleared the form, it is now empty'},
+            {content:'submit', type:'button',queryString:'button[name=submit]'},
+          ],
+        }</code>
+      </div>
+    </div>
+  </body>
+  <script type="text/javascript" src="aui.js">
+  </script>
+  <script type="text/javascript" src="plugins/treegui.js">
+  </script>
+  <script type="text/javascript" src="example.js">
+  </script>
+
+  <script type="text/javascript">
+    aui.init(true);
+    function cancel_submit(e){e.preventDefault();}
+    function reset_form(formid){
+      let form=document.getElementById(formid);
+      let inputs = form.getElementsByTagName('input');
+      for(let i=0;i<inputs.length;i++)inputs[i].value='';
+    };
+    function load_testform(){
+      let testform = {
+        content:'custom data entry',
+        pretext:'form',
+        type: 'container',
+        subelements: [
+          {content:'your text',type:'textfield',queryString:'#text1', description:'enter your chat message here'},
+          {content:'your email', type:'textfield',queryString:'#email', description:'enter your email here'},
+          {content:'notify me', type:'toggle',queryString:'#check1', description:'activate to get our newsletter'},
+          {content:'select an option', type:'select',queryString:'#select1',
+            subelements:[
+              {content:'first option', type:'option', value:'first'},
+              {content:'second option', type:'option',value:'second'},
+              {content:'third option', type:'option',value:'third'},
+            ]
+          },
+          {content:'select another option', type:'select', queryString:'#lazyselect'},
+          {content:'clear all entrys', type:'button',queryString:'#reset', activateMessage:'you have cleared the form, it is now empty'},
+          {content:'submit', type:'button',queryString:'button[name=submit]'},
+        ],
+      }
+    audio_user_interface.loadMain(testform);
+    }
+  </script>
+</html>
